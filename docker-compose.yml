@@ -1,0 +1,115 @@
+# pluto_feed 全容器化编排
+# 用法：
+#   一键拉起全套:  docker compose up -d --build
+#   前端访问:      http://localhost:8081
+#   建表（老卷已有表则跳过；新卷自动执行 initdb）:
+#                  docker exec -i pluto_feed-mysql mysql -uroot -p123456 pluto_feed < migrations/001_init.sql
+#   销毁:          docker compose down -v   （连同数据一起清空，重来）
+#
+# 本地开发（非容器）依然可用：宿主机映射 3308/6380/5673 照旧，go run 直连。
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: pluto_feed-mysql
+    ports:
+      - "3308:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: "123456"
+      MYSQL_DATABASE: pluto_feed
+    volumes:
+      - pluto_feed_mysql_data:/var/lib/mysql
+      # 新数据卷首次启动时自动按序执行 001~006 建表（老卷跳过，不影响现有数据）
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_0900_ai_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p123456"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    container_name: pluto_feed-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - pluto_feed_redis_data:/data
+    command: redis-server --appendonly yes
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: pluto_feed-rabbitmq
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    volumes:
+      - pluto_feed_rabbitmq_data:/var/lib/rabbitmq
+
+  # ---- 应用层（本次新增）----
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pluto_feed-server
+    container_name: pluto_feed-server
+    environment:
+      PLUTO_ADDR: ":8080"
+      # 容器内网用服务名互联（DNS 由 compose 内置），不再走宿主机映射端口
+      PLUTO_MYSQL_DSN: "root:123456@tcp(mysql:3306)/pluto_feed?parseTime=true&charset=utf8mb4&loc=Local"
+      PLUTO_REDIS_ADDR: "redis:6379"
+      PLUTO_RABBIT_URL: "amqp://guest:guest@rabbitmq:5672/"
+      PLUTO_JWT_SECRET: "pluto-feed-dev-secret-change-me"
+    volumes:
+      - pluto_feed_uploads:/app/data/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy   # 等 MySQL 真正可接受连接，而不是容器起了
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pluto_feed-server        # 同一镜像，不同启动命令——镜像不可变原则
+    container_name: pluto_feed-worker
+    # 注意：必须覆盖 entrypoint 而不是 command——
+    # ENTRYPOINT ["/app/server"] + command 只会把 worker 当 server 的参数追加
+    entrypoint: ["/app/worker"]
+    environment:
+      PLUTO_MYSQL_DSN: "root:123456@tcp(mysql:3306)/pluto_feed?parseTime=true&charset=utf8mb4&loc=Local"
+      PLUTO_REDIS_ADDR: "redis:6379"
+      PLUTO_RABBIT_URL: "amqp://guest:guest@rabbitmq:5672/"
+      PLUTO_JWT_SECRET: "pluto-feed-dev-secret-change-me"
+    volumes:
+      - pluto_feed_uploads:/app/data/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+
+  nginx:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    image: pluto_feed-web
+    container_name: pluto_feed-nginx
+    ports:
+      - "8081:80"                   # 前端入口；8080 留给本地开发直连
+    depends_on:
+      server:
+        condition: service_healthy
+
+volumes:
+  pluto_feed_mysql_data:
+  pluto_feed_redis_data:
+  pluto_feed_rabbitmq_data:
+  pluto_feed_uploads:

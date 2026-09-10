@@ -1,0 +1,20 @@
+# 敏感配置：真实 DSN / JWT 密钥绝不入库（模板见 config.example.yaml）
+config.yaml
+config.yaml.bak
+.env
+
+# 运行时产物
+data/
+
+# IDE / 系统 / 工具
+.idea/
+.DS_Store
+.workbuddy/
+
+# 前端构建产物（web/ 内另有 .gitignore）
+web/node_modules/
+web/dist/
+
+# 项目内部文档（不随仓库发布）
+document/
+web/*.tsbuildinfo

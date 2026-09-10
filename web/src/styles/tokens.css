@@ -1,0 +1,60 @@
+/* ============================================================
+   pluto_feed · Material 3 设计令牌
+   方向：Google 设计美学 —— tonal surface + elevation + 四色点阵
+   配色比例：Google 灰白 60% / 蓝灰辅助 30% / Google 蓝 10%
+   所有组件只允许引用这里的变量，禁止硬编码色值。
+   ============================================================ */
+:root {
+  /* -- 色彩：Surface 体系（Material 3 tonal surfaces） -- */
+  --surface: #f8f9fa;            /* Google 页面灰 */
+  --surface-container: #ffffff;  /* 卡片表面 */
+  --surface-variant: #eef1f5;    /* 次级色调表面 */
+  --on-surface: #202124;         /* Google 主文本黑 */
+  --on-surface-variant: #5f6368; /* Google 次级文本灰（对 #fff 对比 7:1+） */
+  --outline: #dadce0;            /* Google 发丝线 */
+
+  /* -- 主色与强调 -- */
+  --primary: #1a73e8;            /* Google 蓝：唯一的动作色 */
+  --primary-container: #e8f0fe;  /* 蓝的 tonal 容器 */
+  --on-primary-container: #174ea6;
+  --success: #34a853;
+  --warning: #fbbc04;
+  --danger: #ea4335;
+
+  /* -- 四色点阵（品牌记忆点） -- */
+  --g-blue: #4285f4;
+  --g-red: #ea4335;
+  --g-yellow: #fbbc04;
+  --g-green: #34a853;
+
+  /* -- 字体：Outfit 展示 + Noto Sans SC 正文 -- */
+  --font-display: "Outfit", "Noto Sans SC", sans-serif;
+  --font-body: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --fs-display: clamp(40px, 6vw, 64px);  /* 首屏大标题，≥48px 基准 */
+  --fs-title: 22px;
+  --fs-body: 15px;
+  --fs-caption: 12.5px;
+  --lh-body: 1.7;
+  --tracking-display: -0.03em;
+
+  /* -- 间距梯度（4 基数） -- */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 16px; --sp-4: 24px;
+  --sp-5: 40px; --sp-6: 64px; --sp-7: 96px;
+
+  /* -- 圆角：Material 3 大圆角 -- */
+  --radius-s: 10px;
+  --radius-m: 16px;
+  --radius-l: 24px;
+  --radius-pill: 999px;
+
+  /* -- Elevation 三级（Y 偏移 2/8/24，带环境色而非纯黑） -- */
+  --elev-1: 0 2px 6px rgba(60, 64, 67, 0.10);
+  --elev-2: 0 8px 24px rgba(60, 64, 67, 0.14);
+  --elev-3: 0 24px 64px rgba(60, 64, 67, 0.22);
+
+  /* -- 动效 -- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 160ms;
+  --dur-base: 320ms;
+  --dur-slow: 640ms;
+}

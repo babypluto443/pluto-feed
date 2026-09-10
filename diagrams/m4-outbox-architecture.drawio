@@ -1,0 +1,105 @@
+<mxGraphModel page="1" pageWidth="1220" pageHeight="960">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+    <mxCell id="2" value="pluto_feed · M4 异步化架构（以一次点赞为例）" style="text;html=1;fontSize=20;fontStyle=1;align=center;" vertex="1" parent="1">
+      <mxGeometry x="300" y="16" width="620" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="10" value="客户端&#xa;(Postman / App)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="40" y="150" width="150" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="11" value="API 进程（cmd/server）— 受理" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;fontStyle=1;verticalAlign=top;spacingTop=6;" vertex="1" parent="1">
+      <mxGeometry x="290" y="90" width="430" height="230" as="geometry"/>
+    </mxCell>
+    <mxCell id="12" value="Auth 中间件&#xa;验 JWT → uid" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="11">
+      <mxGeometry x="25" y="50" width="150" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="13" value="点赞事务（同一个 tx）&#xa;INSERT IGNORE likes(87,3)&#xa;INSERT outbox(like.created,&#xa;payload={post_id:87,&#xa;field:like_count,delta:1})&#xa;COMMIT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=11;align=left;spacingLeft=8;" vertex="1" parent="11">
+      <mxGeometry x="215" y="40" width="195" height="140" as="geometry"/>
+    </mxCell>
+    <mxCell id="14" value="④ 立即响应 200（不等计数 —— 关键路径上只有 2 行 INSERT）" style="text;html=1;fontSize=12;fontStyle=1;align=center;" vertex="1" parent="1">
+      <mxGeometry x="230" y="46" width="340" height="30" as="geometry"/>
+    </mxCell>
+    <mxCell id="20" value="① POST /api/v1/posts/87/like&#xa;Authorization: Bearer &lt;access&gt;" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;fontSize=11;html=1;" edge="1" parent="1" source="10" target="11">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="21" value="② 验签通过把 uid 放进 context" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;fontSize=11;html=1;" edge="1" parent="11" source="12" target="13">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="22" value="③ 同一事务写两行（原子）" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;fontSize=11;html=1;" edge="1" parent="1" source="13" target="25">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="23" value="响应" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;dashed=1;fontSize=11;html=1;exitX=0.25;exitY=0;entryX=0.5;entryY=0;" edge="1" parent="1" source="11" target="10">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="25" value="MySQL&#xa;（事实与事件同库）" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="820" y="100" width="150" height="110" as="geometry"/>
+    </mxCell>
+    <mxCell id="26" value="likes 表：事实（谁赞了）&#xa;outbox 表：待发事件&#xa;（processed_at IS NULL = 待发）" style="text;html=1;fontSize=11;align=left;" vertex="1" parent="1">
+      <mxGeometry x="1000" y="110" width="210" height="90" as="geometry"/>
+    </mxCell>
+    <mxCell id="30" value="Worker 进程（cmd/worker）— 执行（三个角色共用一条 MQ 连接）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;fontStyle=1;verticalAlign=top;spacingTop=6;" vertex="1" parent="1">
+      <mxGeometry x="290" y="560" width="450" height="290" as="geometry"/>
+    </mxCell>
+    <mxCell id="31" value="relay（搬运工·角色1）&#xa;每 500ms 轮询 outbox&#xa;→ publish（confirm）&#xa;→ 成功才 MarkProcessed" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;align=left;spacingLeft=8;" vertex="1" parent="30">
+      <mxGeometry x="25" y="45" width="195" height="100" as="geometry"/>
+    </mxCell>
+    <mxCell id="32" value="consumer（装配工·角色2）&#xa;INSERT IGNORE processed_events&#xa;（主键去重，重复=跳过）&#xa;→ UPDATE 计数+1（同事务）&#xa;→ DEL post:87 缓存 → ACK" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;align=left;spacingLeft=8;" vertex="1" parent="30">
+      <mxGeometry x="245" y="45" width="200" height="140" as="geometry"/>
+    </mxCell>
+    <mxCell id="33" value="dlq 消费者（角色3）&#xa;记录死信 → 报警/人工兜底" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;" vertex="1" parent="30">
+      <mxGeometry x="25" y="200" width="195" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="34" value="⑤ 拉：FetchPending(100)（拉模式）" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;fontSize=11;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="25" target="31">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="40" value="RabbitMQ" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;fontStyle=1;verticalAlign=top;spacingTop=6;" vertex="1" parent="1">
+      <mxGeometry x="820" y="560" width="290" height="290" as="geometry"/>
+    </mxCell>
+    <mxCell id="41" value="exchange&#xa;pluto.events (direct)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="40">
+      <mxGeometry x="20" y="40" width="110" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="42" value="queue&#xa;pluto.interaction" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="40">
+      <mxGeometry x="160" y="40" width="110" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="43" value="DLX&#xa;pluto.dlx (fanout)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="40">
+      <mxGeometry x="20" y="190" width="110" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="44" value="DLQ&#xa;pluto.dlq" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="40">
+      <mxGeometry x="160" y="190" width="110" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="45" value="⑥ publish + confirm 回执" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;fontSize=11;html=1;" edge="1" parent="1" source="31" target="41">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="46" value="按 routing key 路由" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;fontSize=11;html=1;" edge="1" parent="40" source="41" target="42">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="47" value="⑦ 推送 Qos=10" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;fontSize=11;html=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="42" target="32">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="48" value="⑧ 去重 + 计数（同事务）" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;dashed=1;fontSize=11;html=1;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="32" target="25">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="49" value="⑨ DEL post:87" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;fontSize=11;html=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="32" target="50">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="50" value="Redis&#xa;帖子详情缓存" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="40" y="640" width="150" height="100" as="geometry"/>
+    </mxCell>
+    <mxCell id="51" value="NACK（毒消息不重入队）" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;dashed=1;fontColor=#b85450;fontSize=11;html=1;strokeColor=#b85450;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="40" source="42" target="43">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="52" value="fanout" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;fontSize=11;html=1;" edge="1" parent="40" source="43" target="44">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="53" value="⑩ 死信日志" style="edgeStyle=orthogonalEdgeStyle;endArrow=block;endFill=1;dashed=1;fontSize=11;html=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="44" target="33">
+      <mxGeometry relative="1" as="geometry"/>
+    </mxCell>
+    <mxCell id="60" value="崩溃窗口分析（面试必考）：relay 已 publish 未 MarkProcessed 时崩溃 → 重启后重投同一条消息 → consumer 的 processed_events 去重表拦截 → 不重复计数。【至少一次投递 + 幂等消费 = 恰好一次效果】。代价：计数秒级延迟（最终一致性）；outbox 表需定期归档 processed 行。" style="text;html=1;fontSize=12;align=left;spacingLeft=8;" vertex="1" parent="1">
+      <mxGeometry x="40" y="880" width="1140" height="60" as="geometry"/>
+    </mxCell>
+    <mxCell id="61" value="受理与执行分离：API 只管“受理”（业务事务内埋事件），Worker 负责“执行”（投递/计数/失效缓存）。API 不依赖 MQ —— MQ 挂了点赞照样成功受理。" style="text;html=1;fontSize=12;fontStyle=1;align=left;spacingLeft=8;" vertex="1" parent="1">
+      <mxGeometry x="40" y="60" width="230" height="180" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>
